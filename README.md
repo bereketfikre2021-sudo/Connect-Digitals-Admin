@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Connect Digitals — Admin Dashboard
 
 React SPA for the Connect Digitals Promotion Platform admin interface.
@@ -46,3 +47,6 @@ npm run dev
 | `npm run dev` | Dev server on port 5174 |
 | `npm run build` | Production build to `dist/` |
 | `npm run typecheck` | TypeScript check only |
+=======
+# Connect-Digitals-Promotion-Platform
+>>>>>>> be0b6888761768d4eeb3ac00547e8f8b7af137e0

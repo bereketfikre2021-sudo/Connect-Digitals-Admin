@@ -24,6 +24,9 @@ import { ReportDetailPage } from "@/pages/reports/ReportDetailPage";
 import { AnalyticsPage } from "@/pages/analytics/AnalyticsPage";
 import { PaymentMethodsPage } from "@/pages/settings/PaymentMethodsPage";
 import { ServicesManagementPage } from "@/pages/settings/ServicesPage";
+import { AdminUsersPage } from "@/pages/settings/AdminUsersPage";
+import { AuditLogPage } from "@/pages/settings/AuditLogPage";
+import { PromoCodesPage } from "@/pages/settings/PromoCodesPage";
 
 function AdminLayout({ children }: { children: React.ReactNode }) {
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -88,6 +91,9 @@ export function App() {
         <Route path="/analytics"             element={<AnalyticsPage />} />
         <Route path="/settings/payment-methods" element={<PaymentMethodsPage />} />
         <Route path="/settings/services"        element={<ServicesManagementPage />} />
+        <Route path="/settings/admin-users"     element={<AdminUsersPage />} />
+        <Route path="/settings/audit-log"       element={<AuditLogPage />} />
+        <Route path="/settings/promo-codes"     element={<PromoCodesPage />} />
         <Route path="*"                      element={<Navigate to="/" replace />} />
       </Routes>
     </AdminLayout>

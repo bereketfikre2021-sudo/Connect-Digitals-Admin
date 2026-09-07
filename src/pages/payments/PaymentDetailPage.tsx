@@ -98,6 +98,21 @@ export function PaymentDetailPage() {
     },
   });
 
+  const approveDepositMutation = useMutation({
+    mutationFn: () => api.post(`/admin/wallets/deposits/${id}/approve`),
+    onSuccess: () => {
+      invalidate();
+      setModal(null);
+      setFeedback({ type: "success", message: "Deposit approved. Customer wallet has been credited." });
+    },
+    onError: (err: unknown) => {
+      setModal(null);
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })
+        ?.response?.data?.error?.message ?? "Deposit approval failed. Please try again.";
+      setFeedback({ type: "error", message: msg });
+    },
+  });
+
   const rejectMutation = useMutation({
     mutationFn: () => api.post(`/admin/payments/${id}/reject`, { rejectionReason }),
     onSuccess: () => {
@@ -119,6 +134,7 @@ export function PaymentDetailPage() {
   if (!payment) return <div style={{ padding: 28 }}>Payment not found.</div>;
 
   const paymentIsReviewable = payment.status === "UNDER_REVIEW";
+  const isDeposit = payment.order === null;
 
   return (
     <div style={{ padding: 28, maxWidth: 900, flex: 1 }} className="animate-fade-in">
@@ -295,7 +311,7 @@ export function PaymentDetailPage() {
                   fullWidth
                   onClick={() => setModal({ type: "approve" })}
                 >
-                  <CheckIcon size={14} color="#fff" /> Approve Payment
+                  <CheckIcon size={14} color="#fff" /> {isDeposit ? "Approve Deposit & Credit Wallet" : "Approve Payment"}
                 </Button>
               </div>
 
@@ -372,18 +388,20 @@ export function PaymentDetailPage() {
       {/* ── Approve confirmation modal ── */}
       <ConfirmModal
         open={modal?.type === "approve"}
-        title="Approve Payment"
-        body="This will credit the customer's order and create a fulfillment task. This action cannot be undone."
+        title={isDeposit ? "Approve Deposit" : "Approve Payment"}
+        body={isDeposit
+          ? "This will credit the customer's wallet with the deposit amount. This action cannot be undone."
+          : "This will credit the customer's order and create a fulfillment task. This action cannot be undone."}
         confirmLabel="Approve"
         confirmVariant="success"
-        loading={approveMutation.isPending}
+        loading={isDeposit ? approveDepositMutation.isPending : approveMutation.isPending}
         details={[
-          { label: "Order", value: payment.order?.orderNumber ?? "Deposit" },
-          { label: "Amount", value: `${etbDisplay(payment.amountETB)} ETB` },
+          { label: "Type",     value: isDeposit ? "Wallet Deposit" : `Order ${payment.order?.orderNumber}` },
+          { label: "Amount",   value: `${etbDisplay(payment.amountETB)} ETB` },
           { label: "Customer", value: `${payment.user.firstName} ${payment.user.lastName}` },
           { label: "Reference", value: payment.reference },
         ]}
-        onConfirm={() => approveMutation.mutate()}
+        onConfirm={() => isDeposit ? approveDepositMutation.mutate() : approveMutation.mutate()}
         onCancel={() => setModal(null)}
       />
 

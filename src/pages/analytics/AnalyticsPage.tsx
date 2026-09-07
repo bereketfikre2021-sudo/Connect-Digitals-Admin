@@ -1,19 +1,14 @@
-/**
- * Admin Analytics Page — Phase 5
- *
- * Displays operational metrics for a chosen date range.
- * All data is server-side aggregated; no client-side chart libraries added.
- * Simple stat cards, tables, and inline horizontal bar indicators.
- */
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import {
+  BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from "recharts";
 import { api, etbDisplay } from "@/lib/api";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Spinner } from "@/components/ui/Spinner";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
+// ── Types ────────────────────────────────────────────────────────────────────
 interface AnalyticsData {
   range: { from: string; to: string };
   customers: { total: number; newInRange: number };
@@ -29,393 +24,245 @@ interface AnalyticsData {
     underReview: { totalETB: number; count: number };
   };
   wallet: {
-    deposits: { totalETB: number; count: number };
+    deposits:      { totalETB: number; count: number };
     orderPayments: { totalETB: number; count: number };
     currentBalances: { totalETB: number; averageETB: number; walletCount: number };
   };
   fulfillment: { byStatus: Record<string, number> };
-  campaigns: {
-    byStatus: Record<string, number>;
-    metricsAggregate: {
-      snapshotCount: number; impressions: number; reach: number; clicks: number;
-      videoViews: number; likes: number; comments: number; shares: number;
-      engagement: number; conversions: number; spendETB: number;
-    } | null;
-  };
+  campaigns:   { byStatus: Record<string, number>; metricsAggregate: Record<string, number> | null };
   services: Array<{ serviceId: string; serviceName: string; platform: string; orderCount: number; revenueETB: number }>;
 }
 
-// ─── Helper components ────────────────────────────────────────────────────────
+// ── Colours ───────────────────────────────────────────────────────────────────
+const CD_RED    = "#EC1C24";
+const CD_NAVY   = "#000F33";
+const CD_GOLD   = "#D4AF37";
+const COLORS    = [CD_RED, CD_NAVY, CD_GOLD, "#0ea5e9", "#22c55e", "#f97316", "#a855f7", "#ec4899"];
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+// ── Sub-components ────────────────────────────────────────────────────────────
+function KpiCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
-    <div style={{ marginBottom: 28 }}>
-      <h2 style={{ fontFamily: "var(--font-heading)", fontSize: 14, fontWeight: 700, color: "var(--cd-navy)", marginBottom: 14, paddingBottom: 8, borderBottom: "2px solid var(--cd-gray-100)" }}>
-        {title}
-      </h2>
+    <div style={{ background: "#fff", borderRadius: 12, padding: "18px 20px", boxShadow: "var(--shadow-sm)", display: "flex", flexDirection: "column", gap: 6 }}>
+      <p style={{ fontSize: 11, color: "var(--cd-gray-500)", textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 600 }}>{label}</p>
+      <p style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: 26, color: CD_NAVY, lineHeight: 1 }}>{value}</p>
+      {sub && <p style={{ fontSize: 11, color: "var(--cd-gray-500)" }}>{sub}</p>}
+    </div>
+  );
+}
+
+function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ background: "#fff", borderRadius: 12, padding: "20px 20px 16px", boxShadow: "var(--shadow-sm)" }}>
+      <p style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: 13, color: CD_NAVY, marginBottom: 16 }}>{title}</p>
       {children}
     </div>
   );
 }
 
-function StatCard({ label, value, sub, color = "#fff", valueColor = "var(--cd-navy)" }: {
-  label: string; value: string | number; sub?: string;
-  color?: string; valueColor?: string;
-}) {
-  return (
-    <div style={{ background: color, borderRadius: 12, padding: "18px 20px", boxShadow: "var(--shadow-sm)", border: "1px solid var(--cd-gray-200)" }}>
-      <div style={{ fontSize: 11, color: "var(--cd-gray-500)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>{label}</div>
-      <div style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: 24, color: valueColor, lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: "var(--cd-gray-500)", marginTop: 6 }}>{sub}</div>}
-    </div>
-  );
-}
-
-function StatusRow({ label, count, total, color }: { label: string; count: number; total: number; color: string }) {
-  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-  return (
-    <div style={{ marginBottom: 10 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-        <span style={{ fontSize: 12, fontWeight: 500 }}>{label}</span>
-        <span style={{ fontSize: 12, fontWeight: 700 }}>{count.toLocaleString()} <span style={{ color: "var(--cd-gray-500)", fontWeight: 400 }}>({pct}%)</span></span>
-      </div>
-      <div style={{ height: 6, borderRadius: 3, background: "var(--cd-gray-100)", overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 3, transition: "width 0.4s ease" }} />
-      </div>
-    </div>
-  );
-}
-
-function MetricLine({ label, value }: { label: string; value: string | number | null }) {
-  if (value == null || value === 0) return null;
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid var(--cd-gray-100)" }}>
-      <span style={{ fontSize: 13, color: "var(--cd-gray-600)" }}>{label}</span>
-      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--cd-navy)" }}>
-        {typeof value === "number" ? value.toLocaleString() : value}
-      </span>
-    </div>
-  );
-}
-
-// ─── Date range presets ───────────────────────────────────────────────────────
-
-function isoDate(d: Date) {
+// ── Date helpers ──────────────────────────────────────────────────────────────
+function today() { return new Date().toISOString().slice(0, 10); }
+function daysAgo(n: number) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
   return d.toISOString().slice(0, 10);
 }
 
-function preset(days: number): { from: string; to: string } {
-  const to = new Date();
-  const from = new Date();
-  from.setDate(from.getDate() - (days - 1));
-  return { from: isoDate(from), to: isoDate(to) };
-}
-
 const PRESETS = [
-  { label: "Today",    days: 1 },
-  { label: "7 days",   days: 7 },
-  { label: "30 days",  days: 30 },
-  { label: "90 days",  days: 90 },
+  { label: "Last 7 days",  from: daysAgo(6),  to: today() },
+  { label: "Last 30 days", from: daysAgo(29), to: today() },
+  { label: "Last 90 days", from: daysAgo(89), to: today() },
 ];
 
-// ─── Main page ────────────────────────────────────────────────────────────────
-
+// ── Main page ─────────────────────────────────────────────────────────────────
 export function AnalyticsPage() {
-  const [from, setFrom] = useState(() => isoDate((() => { const d = new Date(); d.setDate(d.getDate() - 29); return d; })()));
-  const [to, setTo]     = useState(() => isoDate(new Date()));
+  const [preset, setPreset] = useState(1); // default 30 days
+  const [from, setFrom]     = useState(PRESETS[1]!.from);
+  const [to, setTo]         = useState(PRESETS[1]!.to);
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["admin-analytics", from, to],
     queryFn: () =>
       api.get<{ success: boolean; data: AnalyticsData }>(`/admin/analytics?from=${from}&to=${to}`)
         .then(r => r.data.data),
-    placeholderData: prev => prev,
+    staleTime: 60_000,
   });
 
-  const d = data;
+  function applyPreset(idx: number) {
+    setPreset(idx);
+    setFrom(PRESETS[idx]!.from);
+    setTo(PRESETS[idx]!.to);
+  }
 
-  // Order total for % bars
-  const orderTotal = d?.orders.total ?? 0;
-  const fulfillmentTotal = Object.values(d?.fulfillment.byStatus ?? {}).reduce((a, b) => a + b, 0);
-  const campaignTotal = Object.values(d?.campaigns.byStatus ?? {}).reduce((a, b) => a + b, 0);
+  // ── Derived chart data ────────────────────────────────────────────────────
+  const orderStatusData = data
+    ? Object.entries(data.orders.byStatus).map(([status, count]) => ({ name: status.replace(/_/g, " "), value: count }))
+    : [];
+
+  const fulfillmentData = data
+    ? Object.entries(data.fulfillment.byStatus).map(([status, count]) => ({ name: status, value: count }))
+    : [];
+
+  const paymentStatusData = data
+    ? Object.entries(data.payments.byStatus).map(([status, d]) => ({
+        name: status.replace(/_/g, " "),
+        count: d.count,
+        revenueETB: +(d.totalETB / 100).toFixed(2),
+      }))
+    : [];
+
+  const topServicesData = data?.services.slice(0, 8).map(s => ({
+    name: s.serviceName.length > 20 ? s.serviceName.slice(0, 18) + "…" : s.serviceName,
+    orders:   s.orderCount,
+    revenue:  +(s.revenueETB / 100).toFixed(2),
+  })) ?? [];
+
+  const walletFlowData = data ? [
+    { name: "Deposits",      ETB: +(data.wallet.deposits.totalETB / 100).toFixed(2) },
+    { name: "Order Payments",ETB: +(data.wallet.orderPayments.totalETB / 100).toFixed(2) },
+    { name: "Total Balances",ETB: +(data.wallet.currentBalances.totalETB / 100).toFixed(2) },
+  ] : [];
+
+  const campaignMetrics = data?.campaigns.metricsAggregate;
+  const metricsBarData = campaignMetrics ? [
+    { name: "Impressions", value: campaignMetrics["impressions"] ?? 0 },
+    { name: "Reach",       value: campaignMetrics["reach"]       ?? 0 },
+    { name: "Clicks",      value: campaignMetrics["clicks"]      ?? 0 },
+    { name: "Likes",       value: campaignMetrics["likes"]       ?? 0 },
+    { name: "Comments",    value: campaignMetrics["comments"]    ?? 0 },
+    { name: "Shares",      value: campaignMetrics["shares"]      ?? 0 },
+    { name: "Engagement",  value: campaignMetrics["engagement"]  ?? 0 },
+  ] : [];
 
   return (
     <div style={{ padding: 28, flex: 1 }} className="animate-fade-in">
-      <PageHeader title="Analytics" subtitle="Operational metrics for the selected date range" />
+      <PageHeader title="Analytics" subtitle="Platform performance overview" />
 
-      {/* ── Date range controls ── */}
-      <div style={{ background: "#fff", borderRadius: 12, padding: "16px 20px", boxShadow: "var(--shadow-sm)", marginBottom: 24, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-        <div style={{ display: "flex", gap: 6 }}>
-          {PRESETS.map(p => (
-            <button
-              key={p.label}
-              type="button"
-              onClick={() => { const r = preset(p.days); setFrom(r.from); setTo(r.to); }}
-              style={{
-                padding: "5px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
-                border: "1.5px solid var(--cd-gray-300)", background: "#fff",
-                color: "var(--cd-gray-600)", cursor: "pointer",
-              }}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <label htmlFor="a-from" style={{ fontSize: 12, fontWeight: 600, color: "var(--cd-gray-600)" }}>From</label>
-            <input
-              id="a-from"
-              type="date"
-              value={from}
-              max={to}
-              onChange={e => setFrom(e.target.value)}
-              style={{ padding: "5px 8px", border: "1.5px solid var(--cd-gray-300)", borderRadius: "var(--radius-sm)", fontSize: 12 }}
-            />
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <label htmlFor="a-to" style={{ fontSize: 12, fontWeight: 600, color: "var(--cd-gray-600)" }}>To</label>
-            <input
-              id="a-to"
-              type="date"
-              value={to}
-              min={from}
-              max={isoDate(new Date())}
-              onChange={e => setTo(e.target.value)}
-              style={{ padding: "5px 8px", border: "1.5px solid var(--cd-gray-300)", borderRadius: "var(--radius-sm)", fontSize: 12 }}
-            />
-          </div>
-        </div>
-
-        {isLoading && <span style={{ fontSize: 12, color: "var(--cd-gray-500)" }}>Loading…</span>}
-        {isError && (
-          <button type="button" onClick={() => refetch()} style={{ fontSize: 12, color: "var(--cd-red)", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
-            Failed — retry
+      {/* Date range controls */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
+        {PRESETS.map((p, i) => (
+          <button
+            key={p.label}
+            type="button"
+            onClick={() => applyPreset(i)}
+            style={{
+              padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer",
+              background: preset === i ? CD_RED : "#fff",
+              color:      preset === i ? "#fff" : "var(--cd-gray-600)",
+              border:     `1.5px solid ${preset === i ? CD_RED : "var(--cd-gray-300)"}`,
+            }}
+          >
+            {p.label}
           </button>
-        )}
+        ))}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
+          <input type="date" value={from} max={to} onChange={e => { setFrom(e.target.value); setPreset(-1); }}
+            style={{ padding: "5px 8px", border: "1.5px solid var(--cd-gray-300)", borderRadius: 6, fontSize: 12 }} />
+          <span style={{ fontSize: 12, color: "var(--cd-gray-500)" }}>→</span>
+          <input type="date" value={to} min={from} max={today()} onChange={e => { setTo(e.target.value); setPreset(-1); }}
+            style={{ padding: "5px 8px", border: "1.5px solid var(--cd-gray-300)", borderRadius: 6, fontSize: 12 }} />
+        </div>
       </div>
 
-      {isLoading && !d ? <Spinner /> : !d ? null : (
+      {isLoading ? <Spinner /> : !data ? null : (
         <>
-          {/* ── Customers ── */}
-          <Section title="Customers">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
-              <StatCard label="Total Customers" value={d.customers.total.toLocaleString()} />
-              <StatCard label="New in Period" value={d.customers.newInRange.toLocaleString()} valueColor="var(--cd-red)" />
-            </div>
-          </Section>
+          {/* ── KPI strip ──────────────────────────────────────────────────── */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 24 }}>
+            <KpiCard label="Total Customers"  value={data.customers.total.toLocaleString()} sub={`+${data.customers.newInRange} new`} />
+            <KpiCard label="Orders in Period" value={data.orders.total.toLocaleString()} sub={`${data.orders.completedInRange} completed`} />
+            <KpiCard label="Revenue (ETB)"    value={etbDisplay(data.payments.approvedRevenue.totalETB)} sub={`${data.payments.approvedRevenue.count} payments`} />
+            <KpiCard label="Under Review"     value={data.payments.underReview.count.toLocaleString()} sub={`${etbDisplay(data.payments.underReview.totalETB)} ETB pending`} />
+            <KpiCard label="Completion Rate"  value={data.orders.completionRatePct !== null ? `${data.orders.completionRatePct}%` : "—"} />
+            <KpiCard label="Wallet Deposits"  value={etbDisplay(data.wallet.deposits.totalETB)} sub={`${data.wallet.deposits.count} deposits`} />
+            <KpiCard label="Avg Wallet Bal"   value={etbDisplay(data.wallet.currentBalances.averageETB)} sub={`${data.wallet.currentBalances.walletCount} wallets`} />
+          </div>
 
-          {/* ── Orders ── */}
-          <Section title="Orders">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12, marginBottom: 16 }}>
-              <StatCard label="Total Orders" value={d.orders.total.toLocaleString()} />
-              <StatCard label="Completed" value={d.orders.completedInRange.toLocaleString()} valueColor="#166534" />
-              <StatCard
-                label="Completion Rate"
-                value={d.orders.completionRatePct != null ? `${d.orders.completionRatePct}%` : "—"}
-                sub="of orders past payment stage"
-                valueColor={d.orders.completionRatePct != null && d.orders.completionRatePct >= 80 ? "#166534" : "#854d0e"}
-              />
-            </div>
+          {/* ── Charts row 1 ───────────────────────────────────────────────── */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
 
-            {orderTotal > 0 && (
-              <div style={{ background: "#fff", borderRadius: 12, padding: 20, boxShadow: "var(--shadow-sm)" }}>
-                <h3 style={{ fontFamily: "var(--font-heading)", fontSize: 12, fontWeight: 600, color: "var(--cd-gray-500)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 14 }}>
-                  Orders by Status
-                </h3>
-                {[
-                  { key: "COMPLETED",         label: "Completed",         color: "#22c55e" },
-                  { key: "IN_PROGRESS",        label: "In Progress",       color: "#a78bfa" },
-                  { key: "PROCESSING",         label: "Processing",        color: "#818cf8" },
-                  { key: "PAYMENT_APPROVED",   label: "Payment Approved",  color: "#34d399" },
-                  { key: "PAYMENT_SUBMITTED",  label: "Payment Submitted", color: "#60a5fa" },
-                  { key: "PENDING_PAYMENT",    label: "Pending Payment",   color: "#fbbf24" },
-                  { key: "PAYMENT_REJECTED",   label: "Payment Rejected",  color: "#f87171" },
-                  { key: "CANCELLED",          label: "Cancelled",         color: "#94a3b8" },
-                  { key: "REFUNDED",           label: "Refunded",          color: "#cbd5e1" },
-                ].map(({ key, label, color }) => {
-                  const count = d.orders.byStatus[key] ?? 0;
-                  if (count === 0) return null;
-                  return <StatusRow key={key} label={label} count={count} total={orderTotal} color={color} />;
-                })}
-              </div>
+            <ChartCard title="Order Status Breakdown">
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie data={orderStatusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                    {orderStatusData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </ChartCard>
+
+            <ChartCard title="Payment Status (count + ETB)">
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={paymentStatusData} margin={{ top: 0, right: 8, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="count"      fill={CD_RED}  name="Payments" />
+                  <Bar dataKey="revenueETB" fill={CD_NAVY} name="ETB" />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+          </div>
+
+          {/* ── Charts row 2 ───────────────────────────────────────────────── */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+
+            <ChartCard title="Top Services (orders + revenue)">
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={topServicesData} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 10 }} />
+                  <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={110} />
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="orders"  fill={CD_RED}  name="Orders" />
+                  <Bar dataKey="revenue" fill={CD_GOLD} name="Revenue (ETB)" />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+
+            <ChartCard title="Wallet Flow (ETB)">
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={walletFlowData} margin={{ top: 0, right: 8, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip />
+                  <Bar dataKey="ETB" fill={CD_NAVY} name="ETB" />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+          </div>
+
+          {/* ── Charts row 3 ───────────────────────────────────────────────── */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+
+            <ChartCard title="Fulfillment Status">
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie data={fulfillmentData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
+                    {fulfillmentData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </ChartCard>
+
+            {metricsBarData.length > 0 && (
+              <ChartCard title="Campaign Metrics Aggregate">
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={metricsBarData} margin={{ top: 0, right: 8, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <Tooltip />
+                    <Bar dataKey="value" fill={CD_RED} name="Total" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartCard>
             )}
-          </Section>
-
-          {/* ── Payments & Revenue ── */}
-          <Section title="Payments & Revenue">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12, marginBottom: 16 }}>
-              <StatCard
-                label="Approved Revenue"
-                value={`${etbDisplay(d.payments.approvedRevenue.totalETB)} ETB`}
-                sub={`${d.payments.approvedRevenue.count} payments`}
-                valueColor="var(--cd-red)"
-              />
-              <StatCard
-                label="Pending Review"
-                value={`${etbDisplay(d.payments.underReview.totalETB)} ETB`}
-                sub={`${d.payments.underReview.count} payments`}
-                valueColor="#854d0e"
-              />
-              <StatCard
-                label="Wallet Deposits"
-                value={`${etbDisplay(d.wallet.deposits.totalETB)} ETB`}
-                sub={`${d.wallet.deposits.count} transactions`}
-              />
-              <StatCard
-                label="Wallet Usage"
-                value={`${etbDisplay(d.wallet.orderPayments.totalETB)} ETB`}
-                sub={`${d.wallet.orderPayments.count} order payments`}
-              />
-            </div>
-
-            {/* Payment status breakdown */}
-            {Object.keys(d.payments.byStatus).length > 0 && (
-              <div style={{ background: "#fff", borderRadius: 12, padding: 20, boxShadow: "var(--shadow-sm)", marginBottom: 12 }}>
-                <h3 style={{ fontFamily: "var(--font-heading)", fontSize: 12, fontWeight: 600, color: "var(--cd-gray-500)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 14 }}>
-                  Payments by Status
-                </h3>
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ minWidth: 360 }}>
-                    <thead>
-                      <tr style={{ borderBottom: "2px solid var(--cd-gray-100)" }}>
-                        {["Status", "Count", "Total (ETB)"].map(h => (
-                          <th key={h} style={{ padding: "6px 12px", fontSize: 11, fontWeight: 600, color: "var(--cd-gray-500)", textTransform: "uppercase", letterSpacing: 0.5, textAlign: h === "Status" ? "left" : "right" }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.entries(d.payments.byStatus).map(([status, { count, totalETB }]) => (
-                        <tr key={status} style={{ borderBottom: "1px solid var(--cd-gray-100)" }}>
-                          <td style={{ padding: "8px 12px", fontSize: 13, fontWeight: 500 }}>{status.replace(/_/g, " ")}</td>
-                          <td style={{ padding: "8px 12px", fontSize: 13, textAlign: "right", fontWeight: 600 }}>{count.toLocaleString()}</td>
-                          <td style={{ padding: "8px 12px", fontSize: 13, textAlign: "right", fontFamily: "var(--font-heading)", fontWeight: 700, color: "var(--cd-red)" }}>{etbDisplay(totalETB)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Wallet balances */}
-            <div style={{ background: "#fff", borderRadius: 12, padding: 20, boxShadow: "var(--shadow-sm)" }}>
-              <h3 style={{ fontFamily: "var(--font-heading)", fontSize: 12, fontWeight: 600, color: "var(--cd-gray-500)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12 }}>
-                Wallet Balances (all time)
-              </h3>
-              <MetricLine label="Total outstanding balance" value={`${etbDisplay(d.wallet.currentBalances.totalETB)} ETB`} />
-              <MetricLine label="Average balance per wallet" value={`${etbDisplay(d.wallet.currentBalances.averageETB)} ETB`} />
-              <MetricLine label="Active wallets" value={d.wallet.currentBalances.walletCount.toLocaleString()} />
-            </div>
-          </Section>
-
-          {/* ── Fulfillment ── */}
-          <Section title="Fulfillment">
-            {fulfillmentTotal > 0 ? (
-              <div style={{ background: "#fff", borderRadius: 12, padding: 20, boxShadow: "var(--shadow-sm)" }}>
-                {[
-                  { key: "COMPLETED",         label: "Completed",         color: "#22c55e" },
-                  { key: "PROCESSING",         label: "Processing",        color: "#818cf8" },
-                  { key: "QUEUED",             label: "Queued",            color: "#fbbf24" },
-                  { key: "AWAITING_APPROVAL",  label: "Awaiting Approval", color: "#60a5fa" },
-                  { key: "PENDING",            label: "Pending",           color: "#e2e8f0" },
-                  { key: "FAILED",             label: "Failed",            color: "#f87171" },
-                  { key: "CANCELLED",          label: "Cancelled",         color: "#94a3b8" },
-                ].map(({ key, label, color }) => {
-                  const count = d.fulfillment.byStatus[key] ?? 0;
-                  if (count === 0) return null;
-                  return <StatusRow key={key} label={label} count={count} total={fulfillmentTotal} color={color} />;
-                })}
-              </div>
-            ) : (
-              <p style={{ fontSize: 13, color: "var(--cd-gray-500)" }}>No fulfillment tasks in this period.</p>
-            )}
-          </Section>
-
-          {/* ── Services ── */}
-          <Section title="Orders by Service (top 10)">
-            {d.services.length === 0 ? (
-              <p style={{ fontSize: 13, color: "var(--cd-gray-500)" }}>No orders in this period.</p>
-            ) : (
-              <div style={{ background: "#fff", borderRadius: 12, boxShadow: "var(--shadow-sm)", overflowX: "auto" }}>
-                <table style={{ minWidth: 500 }}>
-                  <thead>
-                    <tr style={{ background: "var(--cd-gray-50)", borderBottom: "1px solid var(--cd-gray-200)" }}>
-                      {["Platform", "Service", "Orders", "Revenue (ETB)"].map(h => (
-                        <th key={h} style={{ padding: "10px 14px", fontSize: 11, fontWeight: 600, color: "var(--cd-gray-600)", textTransform: "uppercase", letterSpacing: 0.5, textAlign: h.includes("Revenue") || h === "Orders" ? "right" : "left" }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {d.services.map((s, i) => (
-                      <tr key={s.serviceId} style={{ borderBottom: "1px solid var(--cd-gray-100)", background: i % 2 === 0 ? "#fff" : "var(--cd-gray-50)" }}>
-                        <td style={{ padding: "10px 14px", fontSize: 12, color: "var(--cd-gray-600)" }}>{s.platform}</td>
-                        <td style={{ padding: "10px 14px", fontSize: 13, fontWeight: 600 }}>{s.serviceName}</td>
-                        <td style={{ padding: "10px 14px", fontSize: 13, fontWeight: 700, textAlign: "right" }}>{s.orderCount.toLocaleString()}</td>
-                        <td style={{ padding: "10px 14px", fontSize: 13, fontWeight: 700, textAlign: "right", color: "var(--cd-red)", fontFamily: "var(--font-heading)" }}>
-                          {etbDisplay(s.revenueETB)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Section>
-
-          {/* ── Campaigns ── */}
-          <Section title="Campaigns">
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              {/* Status breakdown */}
-              <div style={{ background: "#fff", borderRadius: 12, padding: 20, boxShadow: "var(--shadow-sm)" }}>
-                <h3 style={{ fontFamily: "var(--font-heading)", fontSize: 12, fontWeight: 600, color: "var(--cd-gray-500)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 14 }}>
-                  By Status
-                </h3>
-                {campaignTotal === 0 ? (
-                  <p style={{ fontSize: 13, color: "var(--cd-gray-500)" }}>No campaigns in this period.</p>
-                ) : [
-                  { key: "ACTIVE",     label: "Active",     color: "#22c55e" },
-                  { key: "COMPLETED",  label: "Completed",  color: "#34d399" },
-                  { key: "PENDING",    label: "Pending",    color: "#fbbf24" },
-                  { key: "PAUSED",     label: "Paused",     color: "#f59e0b" },
-                  { key: "DRAFT",      label: "Draft",      color: "#94a3b8" },
-                  { key: "FAILED",     label: "Failed",     color: "#f87171" },
-                  { key: "CANCELLED",  label: "Cancelled",  color: "#cbd5e1" },
-                ].map(({ key, label, color }) => {
-                  const count = d.campaigns.byStatus[key] ?? 0;
-                  if (count === 0) return null;
-                  return <StatusRow key={key} label={label} count={count} total={campaignTotal} color={color} />;
-                })}
-              </div>
-
-              {/* Aggregated metrics */}
-              <div style={{ background: "#fff", borderRadius: 12, padding: 20, boxShadow: "var(--shadow-sm)" }}>
-                <h3 style={{ fontFamily: "var(--font-heading)", fontSize: 12, fontWeight: 600, color: "var(--cd-gray-500)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 14 }}>
-                  Campaign Metrics Totals
-                </h3>
-                {!d.campaigns.metricsAggregate ? (
-                  <p style={{ fontSize: 13, color: "var(--cd-gray-500)" }}>No metrics recorded in this period.</p>
-                ) : (
-                  <>
-                    <MetricLine label="Metric snapshots" value={d.campaigns.metricsAggregate.snapshotCount} />
-                    <MetricLine label="Total impressions" value={d.campaigns.metricsAggregate.impressions} />
-                    <MetricLine label="Total reach" value={d.campaigns.metricsAggregate.reach} />
-                    <MetricLine label="Total clicks" value={d.campaigns.metricsAggregate.clicks} />
-                    <MetricLine label="Total video views" value={d.campaigns.metricsAggregate.videoViews} />
-                    <MetricLine label="Total likes" value={d.campaigns.metricsAggregate.likes} />
-                    <MetricLine label="Total comments" value={d.campaigns.metricsAggregate.comments} />
-                    <MetricLine label="Total shares" value={d.campaigns.metricsAggregate.shares} />
-                    <MetricLine label="Total engagement" value={d.campaigns.metricsAggregate.engagement} />
-                    <MetricLine label="Total conversions" value={d.campaigns.metricsAggregate.conversions} />
-                    {d.campaigns.metricsAggregate.spendETB > 0 && (
-                      <MetricLine label="Total spend" value={`${etbDisplay(d.campaigns.metricsAggregate.spendETB)} ETB`} />
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-          </Section>
+          </div>
         </>
       )}
     </div>
