@@ -1,0 +1,139 @@
+:root {
+  --cd-red: #EC1C24;
+  --cd-red-dark: #c81019;
+  --cd-navy: #000F33;
+  --cd-gold: #D4AF37;
+  --cd-white: #ffffff;
+  --cd-gray-50: #f8f9fa;
+  --cd-gray-100: #f1f3f5;
+  --cd-gray-200: #e9ecef;
+  --cd-gray-300: #dee2e6;
+  --cd-gray-500: #adb5bd;
+  --cd-gray-600: #6c757d;
+  --cd-gray-700: #495057;
+  --cd-gray-800: #343a40;
+  --cd-success: #22c55e;
+  --cd-warning: #f59e0b;
+  --cd-error: #ef4444;
+  --font-heading: "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Montserrat", system-ui, sans-serif;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.10);
+  --sidebar-width: 240px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; height: 100%; }
+body { font-family: var(--font-body); color: var(--cd-gray-800); background: var(--cd-gray-50); -webkit-font-smoothing: antialiased; min-height: 100%; width: 100%; }
+#root { min-height: 100vh; width: 100%; display: flex; flex-direction: column; }
+h1,h2,h3,h4 { font-family: var(--font-heading); font-weight: 600; }
+a { color: var(--cd-red); text-decoration: none; }
+button { font-family: var(--font-body); cursor: pointer; border: none; background: none; }
+input, textarea, select { font-family: var(--font-body); font-size: 14px; }
+table { border-collapse: collapse; width: 100%; }
+th { text-align: left; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+.animate-fade-in { animation: fadeIn 0.2s ease-out both; }
+.animate-spin { animation: spin 0.8s linear infinite; }
+
+/* ── Responsive admin layout ─────────────────────────────────────────────────
+   Sidebar collapses on narrow screens; content becomes full-width.
+   Breakpoint: 768px (tablet portrait and below)
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Mobile: hide sidebar, stack layout */
+@media (max-width: 768px) {
+  /* Override the flex row created in AdminLayout */
+  div[style*="display: flex"][style*="minHeight: 100vh"] {
+    flex-direction: column;
+  }
+
+  /* Sidebar becomes a top bar on mobile */
+  aside[style*="position: sticky"] {
+    width: 100% !important;
+    height: auto !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100;
+    flex-direction: row !important;
+    padding: 0 !important;
+    overflow: hidden;
+  }
+
+  /* Hide the nav text labels — icons only on mobile */
+  aside nav span,
+  aside nav > div > div:last-child {
+    display: none;
+  }
+
+  /* Make nav items horizontal */
+  aside nav {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 0 8px !important;
+    gap: 0;
+    scrollbar-width: none;
+  }
+
+  aside nav::-webkit-scrollbar { display: none; }
+
+  /* Make each nav link a compact icon tab */
+  aside nav a {
+    flex: 1 0 auto;
+    min-width: 44px;
+    justify-content: center !important;
+    padding: 12px 8px !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Hide logo wordmark and user info on mobile */
+  aside > div:first-child,
+  aside > div:last-child {
+    display: none !important;
+  }
+
+  /* Settings section label — hide on mobile */
+  aside nav > div[style*="marginTop"] {
+    display: none !important;
+  }
+
+  /* Full width main content */
+  main { min-width: 0; }
+}
+
+/* Responsive page padding */
+@media (max-width: 768px) {
+  div[style*="padding: 28"] {
+    padding: 16px !important;
+  }
+}
+
+/* Responsive 2-column grids → single column on mobile */
+@media (max-width: 600px) {
+  div[style*="gridTemplateColumns: \"1fr 1fr\""] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Responsive table containers: always scrollable */
+div[style*="overflowX: auto"] {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Ensure tables don't cause page overflow */
+@media (max-width: 900px) {
+  table {
+    font-size: 12px;
+  }
+  th, td {
+    padding: 8px 10px !important;
+  }
+}
