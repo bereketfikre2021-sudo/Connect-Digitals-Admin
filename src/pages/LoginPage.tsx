@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,12 +12,22 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export function LoginPage() {
-  const { login, isLoading, error } = useAdminAuthStore();
+  const { login, isLoading, error, logoUrl, setLogo } = useAdminAuthStore();
+  const fileRef = useRef<HTMLInputElement>(null);
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
+
+  const handleLogoFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { alert("Logo must be under 2MB"); return; }
+    const reader = new FileReader();
+    reader.onload = ev => { if (ev.target?.result) setLogo(ev.target.result as string); };
+    reader.readAsDataURL(file);
+  };
 
   return (
     <div style={{
@@ -28,22 +39,52 @@ export function LoginPage() {
         width: 380, background: "#fff", borderRadius: 16,
         padding: 36, boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
       }}>
-        {/* Logo */}
+        {/* Logo — clickable to upload */}
         <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <div style={{
-            width: 48, height: 48, background: "var(--cd-red)", borderRadius: 12,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            margin: "0 auto 12px",
-            fontFamily: "var(--font-heading)", fontWeight: 700, color: "#fff", fontSize: 18,
-          }}>
-            CD
-          </div>
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            title="Click to upload logo"
+            aria-label="Upload brand logo"
+            style={{
+              width: 72, height: 72,
+              borderRadius: 16,
+              overflow: "hidden",
+              background: logoUrl ? "transparent" : "var(--cd-red)",
+              border: logoUrl ? "2px solid #dee2e6" : "none",
+              cursor: "pointer", padding: 0,
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              marginBottom: 12,
+              position: "relative",
+            }}
+          >
+            {logoUrl ? (
+              <img src={logoUrl} alt="Brand logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              <span style={{ fontFamily: "var(--font-heading)", fontWeight: 700, color: "#fff", fontSize: 28 }}>CD</span>
+            )}
+            <span style={{
+              position: "absolute", inset: 0,
+              background: "rgba(0,0,0,0.45)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 10, color: "#fff", fontWeight: 700, letterSpacing: 0.4,
+              opacity: 0, transition: "opacity 0.15s",
+            }} className="logo-upload-hint">
+              UPLOAD
+            </span>
+          </button>
+          <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={handleLogoFile} style={{ display: "none" }} />
           <h1 style={{ fontFamily: "var(--font-heading)", fontSize: 20, fontWeight: 700, color: "var(--cd-navy)" }}>
             Admin Dashboard
           </h1>
           <p style={{ fontSize: 13, color: "var(--cd-gray-600)", marginTop: 4 }}>
             Connect Digitals Promotion Platform
           </p>
+          {!logoUrl && (
+            <p style={{ fontSize: 11, color: "var(--cd-gray-400)", marginTop: 4 }}>
+              Click the logo to upload your brand image
+            </p>
+          )}
         </div>
 
         {error && (

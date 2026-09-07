@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { useRef } from "react";
 import { useAdminAuthStore } from "@/store/auth.store";
 import {
   BarChartIcon, CreditCardIcon, PackageIcon,
@@ -53,6 +54,60 @@ function DesktopNavItem({ to, Icon, label }: { to: string; Icon: IconComp; label
   );
 }
 
+function BrandLogo({ size = 32 }: { size?: number }) {
+  const { logoUrl, setLogo } = useAdminAuthStore();
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { alert("Logo must be under 2MB"); return; }
+    const reader = new FileReader();
+    reader.onload = ev => {
+      if (ev.target?.result) setLogo(ev.target.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        title="Click to upload logo"
+        aria-label="Upload brand logo"
+        style={{
+          width: size, height: size,
+          borderRadius: 8, flexShrink: 0, overflow: "hidden",
+          background: logoUrl ? "transparent" : "var(--cd-red)",
+          border: logoUrl ? "1.5px solid rgba(255,255,255,0.2)" : "none",
+          cursor: "pointer", padding: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          position: "relative",
+        }}
+      >
+        {logoUrl ? (
+          <img src={logoUrl} alt="Brand logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : (
+          <span style={{ fontFamily: "var(--font-heading)", fontWeight: 700, color: "#fff", fontSize: Math.round(size * 0.4) }}>CD</span>
+        )}
+        {/* hover overlay hint */}
+        <span style={{
+          position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 9, color: "#fff", fontWeight: 700, letterSpacing: 0.3,
+          opacity: 0, transition: "opacity 0.15s",
+        }}
+          className="logo-upload-hint"
+        >
+          CHANGE
+        </span>
+      </button>
+      <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={handleFile} style={{ display: "none" }} />
+    </>
+  );
+}
+
 function DesktopSidebar() {
   const { admin, logout } = useAdminAuthStore();
 
@@ -66,13 +121,7 @@ function DesktopSidebar() {
       {/* Logo */}
       <div style={{ padding: "20px 16px 16px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 32, height: 32, background: "var(--cd-red)", borderRadius: 8,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontFamily: "var(--font-heading)", fontWeight: 700, color: "#fff", fontSize: 13, flexShrink: 0,
-          }}>
-            CD
-          </div>
+          <BrandLogo size={32} />
           <div>
             <div style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: 13, lineHeight: 1.2 }}>
               Connect Digitals

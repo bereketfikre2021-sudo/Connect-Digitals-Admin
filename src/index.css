@@ -137,3 +137,9 @@ div[style*="overflowX: auto"] {
     padding: 8px 10px !important;
   }
 }
+
+/* Brand logo upload hover effect */
+button:hover .logo-upload-hint,
+button:focus-visible .logo-upload-hint {
+  opacity: 1 !important;
+}

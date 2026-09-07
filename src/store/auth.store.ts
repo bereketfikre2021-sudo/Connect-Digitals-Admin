@@ -3,6 +3,8 @@ import { api } from "@/lib/api";
 
 interface AdminUser { id: string; email: string; firstName: string; lastName: string; role: string }
 
+const LOGO_KEY = "cd_admin_logo";
+
 interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
@@ -10,22 +12,30 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  logoUrl: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   refreshSession: () => Promise<void>;
+  setLogo: (dataUrl: string) => void;
 }
 
 const ACCESS_KEY = "cd_admin_token";
 const REFRESH_KEY = "cd_admin_refresh";
 
 export const useAdminAuthStore = create<AuthState>((set, get) => ({
-  accessToken: localStorage.getItem(ACCESS_KEY),
-  refreshToken: localStorage.getItem(REFRESH_KEY),
-  admin: null,
+  accessToken:     localStorage.getItem(ACCESS_KEY),
+  refreshToken:    localStorage.getItem(REFRESH_KEY),
+  logoUrl:         localStorage.getItem(LOGO_KEY),
+  admin:           null,
   isAuthenticated: false,
-  isLoading: true,
-  error: null,
+  isLoading:       true,
+  error:           null,
+
+  setLogo: (dataUrl: string) => {
+    localStorage.setItem(LOGO_KEY, dataUrl);
+    set({ logoUrl: dataUrl });
+  },
 
   login: async (email, password) => {
     set({ isLoading: true, error: null });
