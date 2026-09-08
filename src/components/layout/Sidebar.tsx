@@ -1,10 +1,12 @@
 import { NavLink } from "react-router-dom";
 import { useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { useAdminAuthStore } from "@/store/auth.store";
 import {
   BarChartIcon, CreditCardIcon, PackageIcon,
   ClipboardIcon, UsersIcon, WalletIcon, LogOutIcon,
-  ZapIcon, FileTextIcon, TrendUpIcon, GridIcon,
+  ZapIcon, FileTextIcon, TrendUpIcon, GridIcon, BellIcon,
 } from "@/components/ui/Icon";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -19,6 +21,7 @@ const NAV = [
   { to: "/campaigns",   Icon: ZapIcon,        label: "Campaigns" },
   { to: "/reports",     Icon: FileTextIcon,   label: "Reports" },
   { to: "/analytics",   Icon: TrendUpIcon,    label: "Analytics" },
+  { to: "/notifications", Icon: BellIcon,     label: "Notifications", bell: true },
 ];
 
 const SETTINGS_NAV = [
@@ -31,7 +34,7 @@ const ALL_NAV = [...NAV, ...SETTINGS_NAV];
 
 type IconComp = (p: { size?: number; color?: string }) => JSX.Element;
 
-function DesktopNavItem({ to, Icon, label }: { to: string; Icon: IconComp; label: string }) {
+function DesktopNavItem({ to, Icon, label, badge }: { to: string; Icon: IconComp; label: string; badge?: number }) {
   return (
     <NavLink
       to={to}
@@ -46,7 +49,14 @@ function DesktopNavItem({ to, Icon, label }: { to: string; Icon: IconComp; label
     >
       {({ isActive }) => (
         <>
-          <Icon size={16} color={isActive ? "#fff" : "rgba(255,255,255,0.65)"} />
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <Icon size={16} color={isActive ? "#fff" : "rgba(255,255,255,0.65)"} />
+            {badge != null && badge > 0 && (
+              <div style={{ position: "absolute", top: -5, right: -7, minWidth: 15, height: 15, borderRadius: 8, background: "#EC1C24", color: "#fff", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>
+                {badge > 99 ? "99+" : badge}
+              </div>
+            )}
+          </div>
           {label}
         </>
       )}
@@ -111,6 +121,13 @@ function BrandLogo({ size = 32 }: { size?: number }) {
 function DesktopSidebar() {
   const { admin, logout } = useAdminAuthStore();
 
+  const { data: unreadData } = useQuery({
+    queryKey: ["admin-notif-unread"],
+    queryFn: () => api.get<{ success: boolean; data: { unreadCount: number } }>("/admin/notifications/unread").then(r => r.data.data),
+    refetchInterval: 20_000,
+  });
+  const unreadCount = unreadData?.unreadCount ?? 0;
+
   return (
     <aside style={{
       width: "var(--sidebar-width)", flexShrink: 0,
@@ -133,7 +150,15 @@ function DesktopSidebar() {
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: "12px 8px", overflowY: "auto" }} aria-label="Main navigation">
-        {NAV.map(item => <DesktopNavItem key={item.to} {...item} />)}
+        {NAV.map(item => (
+          <DesktopNavItem
+            key={item.to}
+            to={item.to}
+            Icon={item.Icon}
+            label={item.label}
+            badge={"bell" in item && item.bell ? unreadCount : undefined}
+          />
+        ))}
 
         <div style={{ marginTop: 16, marginBottom: 6, paddingLeft: 10 }}>
           <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.8, textTransform: "uppercase", color: "rgba(255,255,255,0.35)" }}>
