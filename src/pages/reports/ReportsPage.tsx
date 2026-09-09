@@ -33,7 +33,7 @@ const PAGE_SIZE = 20;
 
 export function ReportsPage() {
   const navigate = useNavigate();
-  const [status, setStatus] = useState("DRAFT");
+  const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
@@ -57,7 +57,7 @@ export function ReportsPage() {
 
   return (
     <div style={{ padding: 28, flex: 1 }} className="animate-fade-in">
-      <PageHeader title="Reports" subtitle="Draft, publish and archive customer campaign reports" />
+      <PageHeader title="Reports" subtitle="Per-order deliverables sent to customers — create, publish and archive campaign summaries" />
 
       <Toolbar>
         <StatusTabs options={STATUS_OPTIONS} value={status} onChange={handleStatus} />
@@ -66,6 +66,11 @@ export function ReportsPage() {
           {data?.total ?? 0} total
         </span>
       </Toolbar>
+
+      {/* Context note — Reports are customer-facing documents, distinct from Analytics */}
+      <div style={{ marginBottom: 16, padding: "10px 14px", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 8, fontSize: 12, color: "#0369a1", lineHeight: 1.5 }}>
+        <strong>Reports vs Analytics:</strong> Reports are per-order documents you publish directly to the customer (visible in their Telegram Mini App). Analytics is the platform-wide dashboard for internal stats. Reports are created manually — one per order.
+      </div>
 
       {isLoading ? <Spinner /> : (
         <TableContainer>

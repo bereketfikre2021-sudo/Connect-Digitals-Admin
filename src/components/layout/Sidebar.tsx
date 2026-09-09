@@ -6,22 +6,24 @@ import { useAdminAuthStore } from "@/store/auth.store";
 import {
   BarChartIcon, CreditCardIcon, PackageIcon,
   ClipboardIcon, UsersIcon, WalletIcon, LogOutIcon,
-  ZapIcon, FileTextIcon, TrendUpIcon, GridIcon, BellIcon,
+  FileTextIcon, TrendUpIcon, GridIcon, BellIcon,
 } from "@/components/ui/Icon";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 
+// Campaigns removed from top-level nav — a Campaign belongs to an Order and
+// is accessible via the Order detail page ("Open Campaign →"). Keeping the
+// /campaigns and /campaigns/:id routes alive for direct links.
 const NAV = [
-  { to: "/",            Icon: BarChartIcon,   label: "Dashboard" },
-  { to: "/payments",    Icon: CreditCardIcon, label: "Payments" },
-  { to: "/fulfillment", Icon: PackageIcon,    label: "Fulfillment" },
-  { to: "/orders",      Icon: ClipboardIcon,  label: "Orders" },
-  { to: "/customers",   Icon: UsersIcon,      label: "Customers" },
-  { to: "/wallets",     Icon: WalletIcon,     label: "Wallets" },
-  { to: "/campaigns",   Icon: ZapIcon,        label: "Campaigns" },
-  { to: "/reports",     Icon: FileTextIcon,   label: "Reports" },
-  { to: "/analytics",   Icon: TrendUpIcon,    label: "Analytics" },
-  { to: "/notifications", Icon: BellIcon,     label: "Notifications", bell: true },
+  { to: "/",              Icon: BarChartIcon,   label: "Dashboard" },
+  { to: "/payments",      Icon: CreditCardIcon, label: "Payments" },
+  { to: "/orders",        Icon: ClipboardIcon,  label: "Orders" },
+  { to: "/fulfillment",   Icon: PackageIcon,    label: "Fulfillment" },
+  { to: "/customers",     Icon: UsersIcon,      label: "Customers" },
+  { to: "/wallets",       Icon: WalletIcon,     label: "Wallets" },
+  { to: "/reports",       Icon: FileTextIcon,   label: "Reports" },
+  { to: "/analytics",     Icon: TrendUpIcon,    label: "Analytics" },
+  { to: "/notifications", Icon: BellIcon,       label: "Notifications", bell: true },
 ];
 
 const SETTINGS_NAV = [
@@ -68,15 +70,29 @@ function BrandLogo({ size = 32 }: { size?: number }) {
   const { logoUrl, uploadLogo, clearLogo } = useAdminAuthStore();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { alert("Logo must be under 2 MB"); return; }
+    setUploadError(null);
+    if (file.size > 2 * 1024 * 1024) {
+      setUploadError("Image must be under 2 MB");
+      e.target.value = "";
+      return;
+    }
     setUploading(true);
-    try { await uploadLogo(file); }
-    catch { alert("Failed to upload logo. Please try again."); }
-    finally { setUploading(false); e.target.value = ""; }
+    try {
+      await uploadLogo(file);
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { error?: { message?: string } } } })
+          ?.response?.data?.error?.message ?? "Upload failed. Please try again.";
+      setUploadError(msg);
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
   };
 
   return (
@@ -84,7 +100,7 @@ function BrandLogo({ size = 32 }: { size?: number }) {
       <div style={{ position: "relative", flexShrink: 0 }}>
         <button
           type="button"
-          onClick={() => fileRef.current?.click()}
+          onClick={() => { setUploadError(null); fileRef.current?.click(); }}
           title="Click to upload logo"
           aria-label="Upload brand logo"
           disabled={uploading}
@@ -123,6 +139,26 @@ function BrandLogo({ size = 32 }: { size?: number }) {
           </button>
         )}
       </div>
+      {/* Inline upload error — shown below the logo in the sidebar header */}
+      {uploadError && (
+        <div
+          role="alert"
+          style={{
+            position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0,
+            background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 6,
+            padding: "6px 8px", fontSize: 10, color: "#991b1b", lineHeight: 1.4,
+            zIndex: 10, whiteSpace: "normal",
+          }}
+        >
+          {uploadError}
+          <button
+            type="button"
+            onClick={() => setUploadError(null)}
+            aria-label="Dismiss error"
+            style={{ float: "right", background: "none", border: "none", cursor: "pointer", color: "#991b1b", fontWeight: 700, fontSize: 12, padding: 0, lineHeight: 1 }}
+          >×</button>
+        </div>
+      )}
       <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={handleFile} style={{ display: "none" }} />
     </>
   );
@@ -147,7 +183,7 @@ function DesktopSidebar() {
     }}>
       {/* Logo */}
       <div style={{ padding: "20px 16px 16px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
           <BrandLogo size={32} />
           <div>
             <div style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: 13, lineHeight: 1.2 }}>
@@ -205,8 +241,14 @@ function DesktopSidebar() {
 function MobileBottomNav() {
   const { logout } = useAdminAuthStore();
 
-  // Show first 5 main nav items + a "More" style approach:
-  // We show up to 4 main items + a logout button to keep it clean
+  const { data: unreadData } = useQuery({
+    queryKey: ["admin-notif-unread"],
+    queryFn: () => api.get<{ success: boolean; data: { unreadCount: number } }>("/admin/notifications/unread").then(r => r.data.data),
+    refetchInterval: 20_000,
+  });
+  const unreadCount = unreadData?.unreadCount ?? 0;
+
+  // Show first 5 main nav items + logout button
   const visibleItems = ALL_NAV.slice(0, 5);
 
   return (
@@ -227,36 +269,54 @@ function MobileBottomNav() {
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
       }}
     >
-      {visibleItems.map(({ to, Icon, label }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end={to === "/"}
-          style={({ isActive }) => ({
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 3,
-            textDecoration: "none",
-            fontSize: 9,
-            fontWeight: 600,
-            letterSpacing: 0.3,
-            color: isActive ? "var(--cd-red)" : "rgba(255,255,255,0.5)",
-            borderTop: isActive ? "2px solid var(--cd-red)" : "2px solid transparent",
-            transition: "color 0.15s, border-color 0.15s",
-            paddingTop: 2,
-          })}
-        >
-          {({ isActive }) => (
-            <>
-              <Icon size={20} color={isActive ? "var(--cd-red)" : "rgba(255,255,255,0.5)"} />
-              {label}
-            </>
-          )}
-        </NavLink>
-      ))}
+      {visibleItems.map(({ to, Icon, label }) => {
+        const isBell = "bell" in (ALL_NAV.find(n => n.to === to) ?? {});
+        const badge = isBell && unreadCount > 0 ? unreadCount : 0;
+        return (
+          <NavLink
+            key={to}
+            to={to}
+            end={to === "/"}
+            style={({ isActive }) => ({
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 3,
+              textDecoration: "none",
+              fontSize: 9,
+              fontWeight: 600,
+              letterSpacing: 0.3,
+              color: isActive ? "var(--cd-red)" : "rgba(255,255,255,0.5)",
+              borderTop: isActive ? "2px solid var(--cd-red)" : "2px solid transparent",
+              transition: "color 0.15s, border-color 0.15s",
+              paddingTop: 2,
+            })}
+          >
+            {({ isActive }) => (
+              <>
+                <div style={{ position: "relative" }}>
+                  <Icon size={20} color={isActive ? "var(--cd-red)" : "rgba(255,255,255,0.5)"} />
+                  {badge > 0 && (
+                    <div style={{
+                      position: "absolute", top: -4, right: -6,
+                      minWidth: 14, height: 14, borderRadius: 7,
+                      background: "#EC1C24", color: "#fff",
+                      fontSize: 8, fontWeight: 800,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      padding: "0 3px", lineHeight: 1,
+                    }}>
+                      {badge > 99 ? "99+" : badge}
+                    </div>
+                  )}
+                </div>
+                {label}
+              </>
+            )}
+          </NavLink>
+        );
+      })}
 
       {/* Logout button as last tab */}
       <button

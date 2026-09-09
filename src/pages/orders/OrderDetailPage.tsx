@@ -66,6 +66,13 @@ interface OrderDetail {
     createdAt: string;
     assignee: { firstName: string; lastName: string } | null;
   } | null;
+  campaign: {
+    id: string;
+    internalStatus: string;
+    provider: string;
+    startDate: string | null;
+    endDate: string | null;
+  } | null;
   reports: Array<{ id: string; title: string; publishedAt: string | null }>;
 }
 
@@ -110,12 +117,17 @@ export function OrderDetailPage() {
   const [refundReason, setRefundReason] = useState("");
   const [refundFeedback, setRefundFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  const { data: order, isLoading } = useQuery({
+  const { data: order, isLoading, isError } = useQuery({
     queryKey: ["admin-order", id],
     queryFn: () =>
       api.get<{ success: boolean; data: OrderDetail }>(`/admin/orders/${id}`)
         .then(r => r.data.data),
     enabled: !!id,
+    retry: (failureCount, err: unknown) => {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 404) return false;
+      return failureCount < 2;
+    },
   });
 
   const refundMutation = useMutation({
@@ -136,7 +148,16 @@ export function OrderDetailPage() {
   });
 
   if (isLoading) return <div style={{ padding: 28 }}><Spinner /></div>;
-  if (!order) return <div style={{ padding: 28 }}>Order not found.</div>;
+  if (isError) return (
+    <div style={{ padding: 28 }}>
+      <div style={{ background: "#fef2f2", borderRadius: 12, padding: 24, maxWidth: 480, color: "#991b1b" }}>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>Order not found</div>
+        <div style={{ fontSize: 13 }}>This order may have been deleted, or you may not have permission to view it.</div>
+        <button type="button" onClick={() => navigate("/orders")} style={{ marginTop: 14, fontSize: 13, color: "var(--cd-red)", background: "none", border: "none", cursor: "pointer", fontWeight: 600, padding: 0 }}>← Back to Orders</button>
+      </div>
+    </div>
+  );
+  if (!order) return <div style={{ padding: 28 }}><Spinner /></div>;
 
   const latestPayment = order.payments[0] ?? null;
   const canRefund = isSuperAdmin
@@ -365,6 +386,29 @@ export function OrderDetailPage() {
               </>
             )}
           </Card>
+
+          {/* Campaign — only shown if one exists for this order */}
+          {order.campaign && (
+            <Card title="Campaign">
+              <InfoRow label="Status" value={<StatusBadge status={order.campaign.internalStatus} />} />
+              <InfoRow label="Provider" value={order.campaign.provider} />
+              <InfoRow
+                label="Start"
+                value={order.campaign.startDate ? formatDateTime(order.campaign.startDate) : "—"}
+              />
+              <InfoRow
+                label="End"
+                value={order.campaign.endDate ? formatDateTime(order.campaign.endDate) : "—"}
+              />
+              <button
+                type="button"
+                onClick={() => navigate(`/campaigns/${order.campaign!.id}`)}
+                style={{ marginTop: 10, fontSize: 12, color: "var(--cd-red)", background: "none", border: "none", cursor: "pointer", fontWeight: 600, padding: 0 }}
+              >
+                Open Campaign →
+              </button>
+            </Card>
+          )}
 
           {/* Reports */}
           {order.reports.length > 0 && (

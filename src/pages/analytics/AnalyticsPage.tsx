@@ -135,7 +135,7 @@ export function AnalyticsPage() {
 
   return (
     <div style={{ padding: 28, flex: 1 }} className="animate-fade-in">
-      <PageHeader title="Analytics" subtitle="Platform performance overview" />
+      <PageHeader title="Analytics" subtitle="Platform-wide aggregated stats — revenue, orders, payments and fulfillment trends across all customers" />
 
       {/* Date range controls */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>

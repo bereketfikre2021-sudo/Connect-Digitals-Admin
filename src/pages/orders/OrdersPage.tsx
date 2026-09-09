@@ -50,6 +50,7 @@ export function OrdersPage() {
       ).then(r => r.data.data);
     },
     placeholderData: prev => prev,
+    retry: 2,
   });
 
   const handleSearch = (v: string) => { setSearch(v); setPage(1); };
