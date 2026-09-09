@@ -5,6 +5,7 @@ import { z } from "zod";
 import { useAdminAuthStore } from "@/store/auth.store";
 import { Button } from "@/components/ui/Button";
 import { api } from "@/lib/api";
+import { EyeIcon, EyeOffIcon } from "@/components/ui/Icon";
 
 // ── Schemas ────────────────────────────────────────────────────────────────────
 
@@ -115,9 +116,9 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
               type="button"
               onClick={() => setShowPw(v => !v)}
               aria-label={showPw ? "Hide password" : "Show password"}
-              style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#94a3b8", fontSize: 13, padding: 4 }}
+              style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 4, display: "flex", alignItems: "center" }}
             >
-              {showPw ? "🙈" : "👁️"}
+              {showPw ? <EyeOffIcon size={16} color="#94a3b8" /> : <EyeIcon size={16} color="#94a3b8" />}
             </button>
           </div>
           {errors.password && <p role="alert" style={{ fontSize: 12, color: "#ef4444", marginTop: 4 }}>{errors.password.message}</p>}
