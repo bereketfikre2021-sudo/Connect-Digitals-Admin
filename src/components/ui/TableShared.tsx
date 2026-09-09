@@ -178,26 +178,84 @@ interface StatusTabsProps {
   onChange: (v: string) => void;
 }
 
+// Semantic color map — each status value gets its own accent color
+const STATUS_COLORS: Record<string, { bg: string; text: string; border: string; dot: string }> = {
+  // ── All / default ──
+  "":                    { bg: "#1e293b",    text: "#fff",     border: "#1e293b",   dot: "#94a3b8" },
+  // ── Payment statuses ──
+  UNDER_REVIEW:          { bg: "#f59e0b",    text: "#fff",     border: "#f59e0b",   dot: "#fcd34d" },
+  APPROVED:              { bg: "#16a34a",    text: "#fff",     border: "#16a34a",   dot: "#86efac" },
+  REJECTED:              { bg: "#dc2626",    text: "#fff",     border: "#dc2626",   dot: "#fca5a5" },
+  // ── Order statuses ──
+  PENDING_PAYMENT:       { bg: "#f59e0b",    text: "#fff",     border: "#f59e0b",   dot: "#fcd34d" },
+  PAYMENT_SUBMITTED:     { bg: "#0066CC",    text: "#fff",     border: "#0066CC",   dot: "#93c5fd" },
+  PAYMENT_APPROVED:      { bg: "#16a34a",    text: "#fff",     border: "#16a34a",   dot: "#86efac" },
+  PAYMENT_REJECTED:      { bg: "#dc2626",    text: "#fff",     border: "#dc2626",   dot: "#fca5a5" },
+  PROCESSING:            { bg: "#7c3aed",    text: "#fff",     border: "#7c3aed",   dot: "#c4b5fd" },
+  IN_PROGRESS:           { bg: "#0891b2",    text: "#fff",     border: "#0891b2",   dot: "#67e8f9" },
+  COMPLETED:             { bg: "#15803d",    text: "#fff",     border: "#15803d",   dot: "#bbf7d0" },
+  CANCELLED:             { bg: "#64748b",    text: "#fff",     border: "#64748b",   dot: "#cbd5e1" },
+  REFUNDED:              { bg: "#92400e",    text: "#fff",     border: "#92400e",   dot: "#fde68a" },
+  // ── Fulfillment statuses ──
+  QUEUED:                { bg: "#0066CC",    text: "#fff",     border: "#0066CC",   dot: "#93c5fd" },
+  AWAITING_APPROVAL:     { bg: "#f59e0b",    text: "#fff",     border: "#f59e0b",   dot: "#fcd34d" },
+  FAILED:                { bg: "#dc2626",    text: "#fff",     border: "#dc2626",   dot: "#fca5a5" },
+};
+
+const INACTIVE = { bg: "#f8fafc", text: "#475569", border: "#e2e8f0", dot: "#94a3b8" };
+
 export function StatusTabs({ options, value, onChange }: StatusTabsProps) {
   return (
-    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-      {options.map(o => (
-        <button
-          key={o.value}
-          type="button"
-          onClick={() => onChange(o.value)}
-          style={{
-            padding: "5px 13px", borderRadius: 999, fontSize: 12, fontWeight: 600,
-            cursor: "pointer", border: "1.5px solid",
-            borderColor: value === o.value ? "var(--cd-red)" : "var(--cd-gray-300)",
-            background: value === o.value ? "var(--cd-red)" : "#fff",
-            color: value === o.value ? "#fff" : "var(--cd-gray-600)",
-            transition: "all 0.12s",
-          }}
-        >
-          {o.label}
-        </button>
-      ))}
+    <div style={{
+      display: "flex", gap: 6, flexWrap: "wrap",
+      background: "#f1f5f9",
+      padding: "5px 6px",
+      borderRadius: 12,
+      border: "1px solid #e2e8f0",
+    }}>
+      {options.map(o => {
+        const active  = value === o.value;
+        const colors  = STATUS_COLORS[o.value] ?? { bg: "#ec1c24", text: "#fff", border: "#ec1c24", dot: "#fca5a5" };
+        const c       = active ? colors : INACTIVE;
+
+        return (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onChange(o.value)}
+            style={{
+              display:        "flex",
+              alignItems:     "center",
+              gap:            6,
+              padding:        "5px 12px",
+              borderRadius:   8,
+              fontSize:       12,
+              fontWeight:     active ? 700 : 500,
+              fontFamily:     "var(--font-heading)",
+              cursor:         "pointer",
+              border:         `1.5px solid ${active ? c.border : "transparent"}`,
+              background:     active ? c.bg : "transparent",
+              color:          c.text,
+              transition:     "all 0.15s ease",
+              whiteSpace:     "nowrap",
+              boxShadow:      active ? `0 1px 6px ${c.bg}55` : "none",
+              letterSpacing:  active ? 0.2 : 0,
+            }}
+          >
+            {/* Status dot */}
+            <span style={{
+              width:        6,
+              height:       6,
+              borderRadius: "50%",
+              background:   active ? c.dot : "#94a3b8",
+              flexShrink:   0,
+              boxShadow:    active ? `0 0 0 2px ${c.dot}55` : "none",
+              transition:   "all 0.15s",
+            }} />
+            {o.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
