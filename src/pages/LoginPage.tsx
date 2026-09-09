@@ -75,6 +75,7 @@ function LogoBlock() {
 
 function LoginForm({ onForgot }: { onForgot: () => void }) {
   const { login, isLoading, error } = useAdminAuthStore();
+  const [showPw, setShowPw] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
   });
@@ -97,25 +98,45 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
         </div>
 
         <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-            <label htmlFor="login-password" style={{ fontSize: 13, fontWeight: 600, fontFamily: "var(--font-heading)" }}>
-              Password
-            </label>
+          <label htmlFor="login-password" style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6, fontFamily: "var(--font-heading)" }}>
+            Password
+          </label>
+          <div style={{ position: "relative" }}>
+            <input
+              id="login-password"
+              {...register("password")}
+              type={showPw ? "text" : "password"}
+              autoComplete="current-password"
+              placeholder="••••••••••••"
+              aria-invalid={!!errors.password}
+              style={{ ...inputStyle(!!errors.password), paddingRight: 40 }}
+            />
             <button
               type="button"
-              onClick={onForgot}
-              style={{ fontSize: 12, color: "var(--cd-red)", background: "none", border: "none", cursor: "pointer", fontWeight: 600, padding: 0 }}
+              onClick={() => setShowPw(v => !v)}
+              aria-label={showPw ? "Hide password" : "Show password"}
+              style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#94a3b8", fontSize: 13, padding: 4 }}
             >
-              Forgot password?
+              {showPw ? "🙈" : "👁️"}
             </button>
           </div>
-          <input id="login-password" {...register("password")} type="password" autoComplete="current-password" placeholder="••••••••••••" aria-invalid={!!errors.password} style={inputStyle(!!errors.password)} />
           {errors.password && <p role="alert" style={{ fontSize: 12, color: "#ef4444", marginTop: 4 }}>{errors.password.message}</p>}
         </div>
 
         <Button type="submit" variant="primary" size="lg" fullWidth loading={isLoading}>
           Sign In
         </Button>
+
+        {/* Forgot password — bottom of form */}
+        <div style={{ textAlign: "center", marginTop: 4 }}>
+          <button
+            type="button"
+            onClick={onForgot}
+            style={{ fontSize: 13, color: "var(--cd-red)", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}
+          >
+            Forgot your password?
+          </button>
+        </div>
       </form>
     </>
   );
