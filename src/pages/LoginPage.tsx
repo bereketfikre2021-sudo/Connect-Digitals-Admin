@@ -34,16 +34,18 @@ function inputStyle(hasError: boolean): React.CSSProperties {
 // ── Logo ──────────────────────────────────────────────────────────────────────
 
 function LogoBlock() {
-  const { logoUrl, setLogo } = useAdminAuthStore();
+  const { logoUrl, uploadLogo } = useAdminAuthStore();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [, setUploading] = useState(false);
 
-  const handleLogoFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) { alert("Logo must be under 2 MB"); return; }
-    const reader = new FileReader();
-    reader.onload = ev => { if (ev.target?.result) setLogo(ev.target.result as string); };
-    reader.readAsDataURL(file);
+    setUploading(true);
+    try { await uploadLogo(file); }
+    catch { /* silent — login page may not have auth yet, setLogo fallback handles it */ }
+    finally { setUploading(false); e.target.value = ""; }
   };
 
   return (

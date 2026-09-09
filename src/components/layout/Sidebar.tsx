@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAdminAuthStore } from "@/store/auth.store";
@@ -65,54 +65,64 @@ function DesktopNavItem({ to, Icon, label, badge }: { to: string; Icon: IconComp
 }
 
 function BrandLogo({ size = 32 }: { size?: number }) {
-  const { logoUrl, setLogo } = useAdminAuthStore();
+  const { logoUrl, uploadLogo, clearLogo } = useAdminAuthStore();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { alert("Logo must be under 2MB"); return; }
-    const reader = new FileReader();
-    reader.onload = ev => {
-      if (ev.target?.result) setLogo(ev.target.result as string);
-    };
-    reader.readAsDataURL(file);
+    if (file.size > 2 * 1024 * 1024) { alert("Logo must be under 2 MB"); return; }
+    setUploading(true);
+    try { await uploadLogo(file); }
+    catch { alert("Failed to upload logo. Please try again."); }
+    finally { setUploading(false); e.target.value = ""; }
   };
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => fileRef.current?.click()}
-        title="Click to upload logo"
-        aria-label="Upload brand logo"
-        style={{
-          width: size, height: size,
-          borderRadius: 8, flexShrink: 0, overflow: "hidden",
-          background: logoUrl ? "transparent" : "var(--cd-red)",
-          border: logoUrl ? "1.5px solid rgba(255,255,255,0.2)" : "none",
-          cursor: "pointer", padding: 0,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          position: "relative",
-        }}
-      >
-        {logoUrl ? (
-          <img src={logoUrl} alt="Brand logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-        ) : (
-          <span style={{ fontFamily: "var(--font-heading)", fontWeight: 700, color: "#fff", fontSize: Math.round(size * 0.4) }}>CD</span>
-        )}
-        {/* hover overlay hint */}
-        <span style={{
-          position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 9, color: "#fff", fontWeight: 700, letterSpacing: 0.3,
-          opacity: 0, transition: "opacity 0.15s",
-        }}
-          className="logo-upload-hint"
+      <div style={{ position: "relative", flexShrink: 0 }}>
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          title="Click to upload logo"
+          aria-label="Upload brand logo"
+          disabled={uploading}
+          style={{
+            width: size, height: size,
+            borderRadius: 8, overflow: "hidden",
+            background: logoUrl ? "transparent" : "var(--cd-red)",
+            border: logoUrl ? "1.5px solid rgba(255,255,255,0.2)" : "none",
+            cursor: uploading ? "wait" : "pointer", padding: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            position: "relative", opacity: uploading ? 0.6 : 1,
+          }}
         >
-          CHANGE
-        </span>
-      </button>
+          {logoUrl
+            ? <img src={logoUrl} alt="Brand logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            : uploading
+              ? <div className="animate-spin" style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%" }} />
+              : <span style={{ fontFamily: "var(--font-heading)", fontWeight: 700, color: "#fff", fontSize: Math.round(size * 0.4) }}>CD</span>
+          }
+          {!uploading && (
+            <span style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#fff", fontWeight: 700, letterSpacing: 0.3, opacity: 0, transition: "opacity 0.15s" }} className="logo-upload-hint">
+              CHANGE
+            </span>
+          )}
+        </button>
+        {/* Remove logo × button */}
+        {logoUrl && !uploading && (
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); clearLogo(); }}
+            aria-label="Remove brand logo"
+            title="Remove logo"
+            style={{ position: "absolute", top: -5, right: -5, width: 14, height: 14, borderRadius: "50%", background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#1e293b", fontWeight: 700, lineHeight: 1, padding: 0 }}
+          >
+            ×
+          </button>
+        )}
+      </div>
       <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={handleFile} style={{ display: "none" }} />
     </>
   );
