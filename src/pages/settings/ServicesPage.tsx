@@ -14,7 +14,7 @@ interface Package {
   quantity: number; priceETB: number;
   deliveryDaysMin: number; deliveryDaysMax: number;
   isActive: boolean; sortOrder: number; createdAt: string;
-  _count: { orders: number };
+  _count?: { orders: number };
 }
 
 interface Service {
@@ -25,7 +25,7 @@ interface Service {
   fulfillmentType: string; isActive: boolean; sortOrder: number;
   platform: { id: string; name: string; slug: string };
   packages: Package[];
-  _count: { orders: number };
+  _count?: { orders: number };
 }
 
 function FeedbackBanner({ type, message, onDismiss }: { type: "success" | "error"; message: string; onDismiss: () => void }) {
@@ -306,7 +306,7 @@ export function ServicesManagementPage() {
                       <span style={{ fontSize: 11, color: "var(--cd-gray-500)" }}>{svc.platform.name}</span>
                     </div>
                     <div style={{ display: "flex", gap: 12, fontSize: 11, color: "var(--cd-gray-500)" }}>
-                      <span>{svc._count.orders} orders</span>
+                      <span>{svc._count?.orders ?? 0} orders</span>
                       <span>{svc.packages.filter(p => p.isActive).length}/{svc.packages.length} active packages</span>
                       <span style={{ fontFamily: "monospace" }}>{svc.slug}</span>
                     </div>
@@ -390,7 +390,7 @@ export function ServicesManagementPage() {
                                   <span style={{ fontFamily: "var(--font-heading)", fontWeight: 700, color: "var(--cd-red)" }}>{etbDisplay(pkg.priceETB)} ETB</span>
                                   <span>{pkg.quantity.toLocaleString()} units</span>
                                   <span>{pkg.deliveryDaysMin}–{pkg.deliveryDaysMax} days</span>
-                                  <span>{pkg._count.orders} orders</span>
+                                  <span>{pkg._count?.orders ?? 0} orders</span>
                                 </div>
                               </div>
                               <div style={{ display: "flex", gap: 6 }}>
