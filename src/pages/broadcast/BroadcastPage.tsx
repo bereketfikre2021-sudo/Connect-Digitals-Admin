@@ -331,69 +331,92 @@ function TelegramPreview({
       {/* Message bubble area */}
       <div style={{ padding: "16px 14px", minHeight: 200, display: "flex", flexDirection: "column", gap: 8, background: "#0d1117", backgroundImage: "radial-gradient(ellipse at 30% 20%, rgba(236,28,36,0.04) 0%, transparent 60%)" }}>
         {hasContent ? (
-          <div style={{
-            maxWidth: "85%", borderRadius: "16px 16px 16px 4px",
-            overflow: "hidden",
-            background: "#1e293b",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
-          }}>
-            {/* Photo preview */}
-            {messageType === "PHOTO" && previewUrl && (
-              <img
-                src={previewUrl}
-                alt="Broadcast media"
-                style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", display: "block" }}
-              />
-            )}
-            {/* Video placeholder */}
-            {messageType === "VIDEO" && (
-              <div style={{ width: "100%", aspectRatio: "1 / 1", background: "rgba(255,255,255,0.07)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                <div style={{ width: 42, height: 42, borderRadius: "50%", background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <PlayIcon size={20} color="#fff" />
+          <>
+            {/* ── Message bubble ── */}
+            <div style={{
+              maxWidth: "85%", borderRadius: "16px 16px 16px 4px",
+              overflow: "hidden",
+              background: "#1e293b",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+            }}>
+              {/* Photo preview */}
+              {messageType === "PHOTO" && previewUrl && (
+                <img
+                  src={previewUrl}
+                  alt="Broadcast media"
+                  style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", display: "block" }}
+                />
+              )}
+              {/* Video placeholder */}
+              {messageType === "VIDEO" && (
+                <div style={{ width: "100%", aspectRatio: "1 / 1", background: "rgba(255,255,255,0.07)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <div style={{ width: 42, height: 42, borderRadius: "50%", background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <PlayIcon size={20} color="#fff" />
+                  </div>
+                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Video</span>
                 </div>
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Video</span>
-              </div>
-            )}
-            {/* Document placeholder */}
-            {messageType === "DOCUMENT" && (
-              <div style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(236,28,36,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <FileTextIcon size={18} color={R} />
+              )}
+              {/* Document placeholder */}
+              {messageType === "DOCUMENT" && (
+                <div style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(236,28,36,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <FileTextIcon size={18} color={R} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>Document</div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>File attached</div>
+                  </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>Document</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>File attached</div>
+              )}
+              {/* Text / caption */}
+              {displayText.trim() && (
+                <div style={{ padding: "10px 14px", fontSize: 13, color: "#e2e8f0", lineHeight: 1.55, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                  {displayText.slice(0, 400)}{displayText.length > 400 ? "…" : ""}
                 </div>
+              )}
+              {/* Timestamp */}
+              <div style={{ padding: "2px 14px 8px", fontSize: 10, color: "rgba(255,255,255,0.3)", textAlign: "right" }}>
+                {new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
               </div>
-            )}
-            {/* Text / caption */}
-            {displayText.trim() && (
-              <div style={{ padding: "10px 14px", fontSize: 13, color: "#e2e8f0", lineHeight: 1.55, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                {displayText.slice(0, 400)}{displayText.length > 400 ? "…" : ""}
-              </div>
-            )}
-            {/* Timestamp */}
-            <div style={{ padding: "2px 14px 8px", fontSize: 10, color: "rgba(255,255,255,0.3)", textAlign: "right" }}>
-              {new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
             </div>
-            {/* CTA buttons inside bubble */}
+
+            {/* ── Inline keyboard buttons — sit BELOW the bubble, same width ── */}
             {buttons.length > 0 && (
-              <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+              <div style={{
+                maxWidth: "85%",
+                display: "flex", flexDirection: "column", gap: 4,
+              }}>
                 {buttons.map((b, i) => (
                   <div
                     key={i}
+                    title={b.url}
                     style={{
-                      padding: "10px 14px", textAlign: "center", fontSize: 13,
-                      fontWeight: 600, color: "#60a5fa",
-                      borderBottom: i < buttons.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
+                      width: "100%",
+                      padding: "9px 14px",
+                      textAlign: "center",
+                      fontSize: 13, fontWeight: 600,
+                      color: "#60a5fa",
+                      background: "rgba(96,165,250,0.12)",
+                      border: "1px solid rgba(96,165,250,0.22)",
+                      borderRadius: 10,
+                      cursor: "default",
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                      boxSizing: "border-box",
+                      transition: "background 0.12s",
+                      letterSpacing: 0.1,
                     }}
                   >
+                    {/* Link icon */}
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                    </svg>
                     {b.text}
                   </div>
                 ))}
               </div>
             )}
-          </div>
+          </>
         ) : (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 160 }}>
             <div style={{ width: 44, height: 44, borderRadius: "50%", background: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center" }}>
