@@ -28,6 +28,7 @@ import { AdminUsersPage } from "@/pages/settings/AdminUsersPage";
 import { AuditLogPage } from "@/pages/settings/AuditLogPage";
 import { PromoCodesPage } from "@/pages/settings/PromoCodesPage";
 import { NotificationsPage } from "@/pages/notifications/NotificationsPage";
+import { BroadcastPage } from "@/pages/broadcast/BroadcastPage";
 
 function AdminLayout({ children }: { children: React.ReactNode }) {
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -96,6 +97,7 @@ export function App() {
         <Route path="/settings/audit-log"       element={<AuditLogPage />} />
         <Route path="/settings/promo-codes"     element={<PromoCodesPage />} />
         <Route path="/notifications"             element={<NotificationsPage />} />
+        <Route path="/broadcast"                 element={<BroadcastPage />} />
         <Route path="*"                      element={<Navigate to="/" replace />} />
       </Routes>
     </AdminLayout>

@@ -6,7 +6,7 @@ import { useAdminAuthStore } from "@/store/auth.store";
 import {
   BarChartIcon, CreditCardIcon, PackageIcon,
   ClipboardIcon, UsersIcon, WalletIcon, LogOutIcon,
-  FileTextIcon, TrendUpIcon, GridIcon, BellIcon,
+  FileTextIcon, TrendUpIcon, GridIcon, BellIcon, SendIcon,
 } from "@/components/ui/Icon";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -21,6 +21,7 @@ const NAV = [
   { to: "/fulfillment",   Icon: PackageIcon,    label: "Fulfillment" },
   { to: "/customers",     Icon: UsersIcon,      label: "Customers" },
   { to: "/wallets",       Icon: WalletIcon,     label: "Wallets" },
+  { to: "/broadcast",     Icon: SendIcon,       label: "Broadcast" },
   { to: "/reports",       Icon: FileTextIcon,   label: "Reports" },
   { to: "/analytics",     Icon: TrendUpIcon,    label: "Analytics" },
   { to: "/notifications", Icon: BellIcon,       label: "Notifications", bell: true },
